@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cinemoir — 影像回憶</title>
+    <meta
+      name="description"
+      content="Cinemoir 影片日記播放器，記錄每一幀值得珍藏的記憶。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Serif+TC:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0f0f0f;
+        --surface: #161616;
+        --gold: #b8a06a;
+        --gold-dim: #7a6a47;
+        --text-primary: #f0ece4;
+        --text-secondary: #8a8680;
+        --text-muted: #4a4845;
+        --border: rgba(184, 160, 106, 0.15);
+        --shadow-video: 0 8px 48px rgba(0, 0, 0, 0.8),
+          0 2px 12px rgba(184, 160, 106, 0.06);
+      }
+
+      html {
+        background: var(--bg);
+        min-height: 100%;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text-primary);
+        font-family: "Noto Serif TC", serif;
+        font-weight: 300;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* ── Layout ── */
+      .page {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 80px 40px 120px;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.1s
+          forwards;
+      }
+
+      @keyframes fadeUp {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── Header ── */
+      .entry-date {
+        font-family: "Playfair Display", serif;
+        font-size: 0.78rem;
+        font-style: italic;
+        color: var(--gold);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+
+      .divider-thin {
+        width: 40px;
+        height: 1px;
+        background: var(--gold-dim);
+        margin-bottom: 24px;
+        opacity: 0.6;
+      }
+
+      .entry-title {
+        font-family: "Playfair Display", serif;
+        font-size: clamp(2rem, 5vw, 3.2rem);
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--text-primary);
+        margin-bottom: 56px;
+        letter-spacing: -0.01em;
+      }
+
+      /* ── Video ── */
+      .video-wrap {
+        position: relative;
+        width: 100%;
+        background: #080808;
+        box-shadow: var(--shadow-video);
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 56px;
+      }
+
+      .video-wrap video {
+        display: block;
+        width: 100%;
+        max-height: 540px;
+        object-fit: contain;
+        background: #000;
+      }
+
+      .video-caption {
+        padding: 12px 16px;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        letter-spacing: 0.06em;
+        border-top: 1px solid var(--border);
+      }
+
+      /* ── Content ── */
+      .entry-content {
+        font-size: 1.05rem;
+        line-height: 1.9;
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .entry-content p + p {
+        margin-top: 1.4em;
+      }
+
+      /* ── Footer ── */
+      .page-footer {
+        margin-top: 80px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .page-footer .logo-mark {
+        font-family: "Playfair Display", serif;
+        font-style: italic;
+        color: var(--gold-dim);
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+      }
+
+      /* ── Error State ── */
+      .error-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        text-align: center;
+        padding: 40px;
+        opacity: 0;
+        animation: fadeUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s
+          forwards;
+      }
+
+      .error-glyph {
+        font-size: 3rem;
+        color: var(--gold-dim);
+        margin-bottom: 32px;
+        opacity: 0.4;
+        font-family: "Playfair Display", serif;
+        font-style: italic;
+      }
+
+      .error-title {
+        font-family: "Playfair Display", serif;
+        font-size: 1.6rem;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        font-style: italic;
+      }
+
+      .error-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        letter-spacing: 0.1em;
+        line-height: 1.8;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 560px) {
+        .page {
+          padding: 56px 24px 80px;
+        }
+        .entry-title {
+          margin-bottom: 40px;
+        }
+        .video-wrap {
+          margin-bottom: 40px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      (function () {
+        /**
+         * Decode base64 → UTF-8 string (handles Chinese / multibyte chars)
+         */
+        function decodeBase64UTF8(str) {
+          return decodeURIComponent(escape(window.atob(str)));
+        }
+
+        /**
+         * Convert Google Drive share URL to direct-download URL.
+         * /file/d/<ID>/view → https://drive.google.com/uc?export=download&id=<ID>
+         */
+        function resolveVideoUrl(url) {
+          if (!url) return "";
+          if (url.includes("drive.google.com")) {
+            const match = url.match(/\/file\/d\/([^/]+)/);
+            if (match) {
+              return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+            }
+          }
+          return url;
+        }
+
+        /**
+         * Escape HTML entities for safe injection.
+         */
+        function esc(str) {
+          return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
+
+        /**
+         * Render the diary entry page.
+         */
+        function renderEntry(data) {
+          const videoSrc = resolveVideoUrl(data.videoUrl);
+          const root = document.getElementById("root");
+
+          // Build content paragraphs
+          const paragraphs = (data.content || "")
+            .split(/\n+/)
+            .filter(Boolean)
+            .map((p) => `<p>${esc(p)}</p>`)
+            .join("");
+
+          root.innerHTML = `
+            <main class="page" role="main">
+              <p class="entry-date" aria-label="日期">${esc(data.date)}</p>
+              <div class="divider-thin" aria-hidden="true"></div>
+              <h1 class="entry-title">${esc(data.title)}</h1>
+
+              ${
+                videoSrc
+                  ? `
+                <div class="video-wrap">
+                  <video
+                    controls
+                    playsinline
+                    preload="metadata"
+                    src="${esc(videoSrc)}"
+                    aria-label="影片：${esc(data.title)}"
+                  >
+                    您的瀏覽器不支援 HTML5 影片。
+                  </video>
+                  <div class="video-caption">▶ ${esc(data.title)}</div>
+                </div>`
+                  : ""
+              }
+
+              <article class="entry-content" aria-label="日記內文">
+                ${paragraphs || "<p>（無內文）</p>"}
+              </article>
+
+              <footer class="page-footer" aria-label="頁尾">
+                <span class="logo-mark">Cinemoir</span>
+                <span>— 記憶的影像詩</span>
+              </footer>
+            </main>
+          `;
+
+          document.title = `${data.title} — Cinemoir`;
+        }
+
+        /**
+         * Render error / empty state.
+         */
+        function renderError(msg) {
+          const root = document.getElementById("root");
+          root.innerHTML = `
+            <div class="error-page" role="main" aria-label="錯誤頁面">
+              <div class="error-glyph" aria-hidden="true">〰</div>
+              <h1 class="error-title">回憶正在摺疊中…</h1>
+              <p class="error-subtitle">${esc(msg)}</p>
+            </div>
+          `;
+        }
+
+        /* ── Entry Point ── */
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const raw = params.get("data");
+
+          if (!raw) {
+            renderError("未找到對應的回憶。\n請確認連結是否包含正確的 data 參數。");
+            return;
+          }
+
+          let decoded;
+          try {
+            decoded = decodeBase64UTF8(raw);
+          } catch (e) {
+            renderError("回憶解碼失敗，資料格式不正確。");
+            return;
+          }
+
+          let entry;
+          try {
+            entry = JSON.parse(decoded);
+          } catch (e) {
+            renderError("回憶解析失敗，JSON 格式有誤。");
+            return;
+          }
+
+          if (!entry.title && !entry.content) {
+            renderError("回憶內容為空，無法展示。");
+            return;
+          }
+
+          renderEntry(entry);
+        } catch (err) {
+          renderError("發生未知錯誤，回憶暫時無法顯示。");
+          console.error("[Cinemoir]", err);
+        }
+      })();
+    </script>
+  </body>
+</html>
