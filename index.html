@@ -110,12 +110,17 @@
         margin-bottom: 56px;
       }
 
-      .video-wrap video {
+      .video-wrap video,
+      .video-wrap iframe {
         display: block;
         width: 100%;
         max-height: 540px;
+        /* iframe needs a fixed height since it can't auto-size like video */
+        height: 56.25vw; /* 16:9 ratio based on viewport width */
+        max-height: 540px;
         object-fit: contain;
         background: #000;
+        border: none;
       }
 
       .video-caption {
@@ -219,24 +224,35 @@
     <script>
       (function () {
         /**
-         * Decode base64 → UTF-8 string (handles Chinese / multibyte chars)
+         * Decode base64 / base64url → UTF-8 string (handles Chinese / multibyte chars).
+         * Accepts both standard (+/) and URL-safe (-_) base64, with or without padding.
          */
         function decodeBase64UTF8(str) {
+          // Convert URL-safe base64 → standard base64
+          str = str.replace(/-/g, '+').replace(/_/g, '/');
+          // Re-add padding if stripped
+          while (str.length % 4 !== 0) str += '=';
           return decodeURIComponent(escape(window.atob(str)));
         }
 
         /**
-         * Convert Google Drive share URL to direct-download URL.
-         * /file/d/<ID>/view → https://drive.google.com/uc?export=download&id=<ID>
+         * Extract Google Drive file ID from a share URL.
+         * Returns null if not a Drive URL.
+         */
+        function getDriveFileId(url) {
+          if (!url || !url.includes('drive.google.com')) return null;
+          const match = url.match(/\/file\/d\/([^/?]+)/);
+          return match ? match[1] : null;
+        }
+
+        /**
+         * For non-Drive URLs, return the URL as-is for the <video> tag.
+         * Drive URLs are handled separately via iframe.
          */
         function resolveVideoUrl(url) {
-          if (!url) return "";
-          if (url.includes("drive.google.com")) {
-            const match = url.match(/\/file\/d\/([^/]+)/);
-            if (match) {
-              return `https://drive.google.com/uc?export=download&id=${match[1]}`;
-            }
-          }
+          if (!url) return '';
+          // Drive URLs: handled by iframe, not <video>
+          if (getDriveFileId(url)) return null;
           return url;
         }
 
@@ -255,44 +271,58 @@
          * Render the diary entry page.
          */
         function renderEntry(data) {
+          const driveId = getDriveFileId(data.videoUrl);
           const videoSrc = resolveVideoUrl(data.videoUrl);
-          const root = document.getElementById("root");
+          const root = document.getElementById('root');
 
           // Build content paragraphs
-          const paragraphs = (data.content || "")
+          const paragraphs = (data.content || '')
             .split(/\n+/)
             .filter(Boolean)
             .map((p) => `<p>${esc(p)}</p>`)
-            .join("");
+            .join('');
+
+          // Video block: iframe for Drive, <video> for direct URLs
+          let videoHtml = '';
+          if (driveId) {
+            // Google Drive — use /preview iframe (officially supported embedding)
+            const previewUrl = `https://drive.google.com/file/d/${driveId}/preview`;
+            videoHtml = `
+              <div class="video-wrap">
+                <iframe
+                  src="${previewUrl}"
+                  allow="autoplay"
+                  allowfullscreen
+                  frameborder="0"
+                  aria-label="影片：${esc(data.title)}"
+                ></iframe>
+                <div class="video-caption">▶ ${esc(data.title)}</div>
+              </div>`;
+          } else if (videoSrc) {
+            videoHtml = `
+              <div class="video-wrap">
+                <video
+                  controls
+                  playsinline
+                  preload="metadata"
+                  src="${esc(videoSrc)}"
+                  aria-label="影片：${esc(data.title)}"
+                >
+                  您的瀏覽器不支援 HTML5 影片。
+                </video>
+                <div class="video-caption">▶ ${esc(data.title)}</div>
+              </div>`;
+          }
 
           root.innerHTML = `
             <main class="page" role="main">
               <p class="entry-date" aria-label="日期">${esc(data.date)}</p>
               <div class="divider-thin" aria-hidden="true"></div>
               <h1 class="entry-title">${esc(data.title)}</h1>
-
-              ${
-                videoSrc
-                  ? `
-                <div class="video-wrap">
-                  <video
-                    controls
-                    playsinline
-                    preload="metadata"
-                    src="${esc(videoSrc)}"
-                    aria-label="影片：${esc(data.title)}"
-                  >
-                    您的瀏覽器不支援 HTML5 影片。
-                  </video>
-                  <div class="video-caption">▶ ${esc(data.title)}</div>
-                </div>`
-                  : ""
-              }
-
+              ${videoHtml}
               <article class="entry-content" aria-label="日記內文">
-                ${paragraphs || "<p>（無內文）</p>"}
+                ${paragraphs || '<p>（無內文）</p>'}
               </article>
-
               <footer class="page-footer" aria-label="頁尾">
                 <span class="logo-mark">Cinemoir</span>
                 <span>— 記憶的影像詩</span>
